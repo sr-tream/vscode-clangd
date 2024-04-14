@@ -2,7 +2,7 @@
     "name": "vscode-clangd",
     "displayName": "clangd",
     "description": "C/C++ completion, navigation, and insights",
-    "version": "0.1.28",
+    "version": "99.1.28",
     "publisher": "llvm-vs-code-extensions",
     "license": "MIT",
     "homepage": "https://clangd.llvm.org/",
@@ -77,7 +77,10 @@
         "untrustedWorkspaces": {
             "supported": "limited",
             "description": "In restricted mode clangd.path and clangd.arguments are not respected.",
-            "restrictedConfigurations": ["clangd.path", "clangd.arguments"]
+            "restrictedConfigurations": [
+                "clangd.path",
+                "clangd.arguments"
+            ]
         }
     },
     "contributes": {
@@ -173,9 +176,9 @@
                     "description": "Opacity of inactive regions (used only if clangd.inactiveRegions.useBackgroundHighlight=false)"
                 },
                 "clangd.enableCodeCompletion": {
-                  "type": "boolean",
-                  "default": true,
-                  "description": "Enable code completion provided by the language server"
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable code completion provided by the language server"
                 }
             }
         },
@@ -317,15 +320,6 @@
                     "when": "resourceLangId == cpp && clangd.enableTypeHierarchy",
                     "group": "0_navigation@4",
                     "_comment": "see https://github.com/microsoft/vscode-references-view/blob/f63eaed9934ca5ecc8f3fb3ca096f38c6e5e181f/package.json#L162"
-                },
-                {
-                    "command": "clangd.switchheadersource",
-                    "when": "resourceLangId == c || resourceLangId == cpp || resourceLangId == cuda-cpp || resourceLangId == objective-c || resourceLangId == objective-cpp",
-                    "group": "0_navigation@5"
-                },
-                {
-                    "command": "clangd.ast",
-                    "when": "(resourceLangId == c || resourceLangId == cpp || resourceLangId == cuda-cpp || resourceLangId == objective-c || resourceLangId == objective-cpp) && clangd.ast.supported"
                 }
             ],
             "view/title": [
