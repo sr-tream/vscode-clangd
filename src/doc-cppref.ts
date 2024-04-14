@@ -32,6 +32,7 @@ export const type =
 
 class DocCppReferenceFeature implements vscodelc.StaticFeature {
   private url = 'https://duckduckgo.com/?q=!ducky+site:cppreference.com';
+  private urlBoost = 'https://duckduckgo.com/?q=!ducky+site:www.boost.org';
   private commandRegistered = false;
 
   constructor(private readonly context: ClangdContext) {}
@@ -75,11 +76,10 @@ class DocCppReferenceFeature implements vscodelc.StaticFeature {
   async openDocumentation() {
     const symbols = await this.getSymbolsUnderCursor();
     symbols.forEach(symbol => {
-      if (!symbol.startsWith('std::'))
-        return;
-
-      vscode.commands.executeCommand('vscode.open',
-                                     vscode.Uri.parse(this.url + '+' + symbol));
+      if (symbol.startsWith('std::'))
+        vscode.env.openExternal(vscode.Uri.parse(this.url + '+' + symbol));
+      else if (symbol.startsWith('boost::'))
+        vscode.env.openExternal(vscode.Uri.parse(this.urlBoost + '+' + symbol));
     });
   }
 
