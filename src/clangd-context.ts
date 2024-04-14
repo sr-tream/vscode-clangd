@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as vscodelc from 'vscode-languageclient/node';
 
 import * as ast from './ast';
+import * as cmakeTools from './cmake-tools';
 import * as config from './config';
 import * as configFileWatcher from './config-file-watcher';
 import * as docCppref from './doc-cppref';
@@ -186,6 +187,7 @@ export class ClangdContext implements vscode.Disposable {
     switchSourceHeader.activate(this);
     configFileWatcher.activate(this);
     docCppref.activate(this);
+    cmakeTools.activate(this);
   }
 
   get visibleClangdEditors(): vscode.TextEditor[] {
