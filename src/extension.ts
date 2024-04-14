@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import * as lc from 'vscode-languageclient';
 
-import {ClangdContext} from './clangd-context';
+import { ClangdContext } from './clangd-context';
+
+export let extension_ready: boolean = false;
 
 /**
  *  This method is called when the extension is activated. The extension is
@@ -84,4 +86,5 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }, 5000);
   }
+  extension_ready = true;
 }

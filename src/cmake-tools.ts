@@ -5,6 +5,7 @@ import * as vscodelc from 'vscode-languageclient/node';
 import { exec } from 'child_process';
 
 import {ClangdContext} from './clangd-context';
+import * as thisExtension from './extension';
 
 export function activate(context: ClangdContext) {
   const feature = new CMakeToolsFeature(context);
@@ -47,7 +48,8 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
   private codeModelChange: vscode.Disposable|undefined;
   private cmakeTools: api.CMakeToolsApi|undefined;
   private project: api.Project|undefined;
-  private codeModel: Map<string, protocol.ClangdCompileCommand>|undefined;
+  private codeModel: Map<string, protocol.ClangdCompileCommand> | undefined;
+  private restarting = false;
 
   constructor(private readonly context: ClangdContext) {
     let cmakeTools = api.getCMakeToolsApi(api.Version.v1);
@@ -98,6 +100,21 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
     });
   }
 
+  public async do_restart_clangd() {
+    vscode.commands.executeCommand('clangd.restart');
+    this.restarting = false;
+  }
+
+  async restart_clangd() {
+    if (this.restarting) return;
+    this.restarting = true;
+    const interval = setInterval(function (This: CMakeToolsFeature) {
+      if (!thisExtension.extension_ready) return;
+      This.do_restart_clangd();
+      clearInterval(interval);
+    }, 5000, this);
+  }
+
   async onCodeModelChanged() {
     const content = this.project?.codeModel;
     if (content === undefined)
@@ -121,7 +138,7 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
           while (stdout.endsWith('\n') || stdout.endsWith('\r')) stdout = stdout.slice(0, -1);
           if (stdout !== clang_resource_dir) {
             clang_resource_dir = stdout;
-            vscode.commands.executeCommand('clangd.restart');
+            this.restart_clangd();
           }
         });
       }
