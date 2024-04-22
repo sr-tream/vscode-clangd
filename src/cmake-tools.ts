@@ -1,8 +1,8 @@
+import {exec} from 'child_process';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as api from 'vscode-cmake-tools';
 import * as vscodelc from 'vscode-languageclient/node';
-import { exec } from 'child_process';
 
 import {ClangdContext} from './clangd-context';
 import * as thisExtension from './extension';
@@ -12,7 +12,7 @@ export function activate(context: ClangdContext) {
   context.client.registerFeature(feature);
 }
 
-export let clang_resource_dir: string | undefined;
+export let clang_resource_dir: string|undefined;
 
 namespace protocol {
 
@@ -48,7 +48,7 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
   private codeModelChange: vscode.Disposable|undefined;
   private cmakeTools: api.CMakeToolsApi|undefined;
   private project: api.Project|undefined;
-  private codeModel: Map<string, protocol.ClangdCompileCommand> | undefined;
+  private codeModel: Map<string, protocol.ClangdCompileCommand>|undefined;
   private restarting = false;
 
   constructor(private readonly context: ClangdContext) {
@@ -106,10 +106,12 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
   }
 
   async restart_clangd() {
-    if (this.restarting) return;
+    if (this.restarting)
+      return;
     this.restarting = true;
-    const interval = setInterval(function (This: CMakeToolsFeature) {
-      if (!thisExtension.extension_ready) return;
+    const interval = setInterval(function(This: CMakeToolsFeature) {
+      if (!thisExtension.extension_ready)
+        return;
       This.do_restart_clangd();
       clearInterval(interval);
     }, 5000, this);
@@ -123,24 +125,29 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
     if (content.toolchains === undefined)
       return;
 
-    const firstCompiler = content.toolchains.values().next().value as api.CodeModel.Toolchain || undefined;
+    const firstCompiler =
+        content.toolchains.values().next().value as api.CodeModel.Toolchain ||
+        undefined;
     if (firstCompiler !== undefined) {
       let compilerName =
-        firstCompiler.path.substring(firstCompiler.path.lastIndexOf(path.sep) + 1)
-          .toLowerCase();
+          firstCompiler.path
+              .substring(firstCompiler.path.lastIndexOf(path.sep) + 1)
+              .toLowerCase();
       if (compilerName.endsWith('.exe'))
         compilerName = compilerName.substring(0, compilerName.length - 4);
       if (compilerName.indexOf('clang') !== -1) {
-        exec(`${firstCompiler.path} -print-file-name=`, (error, stdout, stderr) => {
-          if (error) {
-            return;
-          }
-          while (stdout.endsWith('\n') || stdout.endsWith('\r')) stdout = stdout.slice(0, -1);
-          if (stdout !== clang_resource_dir) {
-            clang_resource_dir = stdout;
-            this.restart_clangd();
-          }
-        });
+        exec(`${firstCompiler.path} -print-file-name=`,
+             (error, stdout, stderr) => {
+               if (error) {
+                 return;
+               }
+               while (stdout.endsWith('\n') || stdout.endsWith('\r'))
+                 stdout = stdout.slice(0, -1);
+               if (stdout !== clang_resource_dir) {
+                 clang_resource_dir = stdout;
+                 this.restart_clangd();
+               }
+             });
       }
     }
 
