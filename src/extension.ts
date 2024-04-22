@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as lc from 'vscode-languageclient';
 
-import { ClangdContext } from './clangd-context';
+import {ClangdContext} from './clangd-context';
 
 export let extension_ready: boolean = false;
 
@@ -32,7 +32,8 @@ export async function activate(context: vscode.ExtensionContext) {
           return;
         }
         await clangdContext.dispose();
-        await clangdContext.activate(context.globalStorageUri.path, outputChannel);
+        await clangdContext.activate(context.globalStorageUri.path,
+                                     outputChannel);
       }));
 
   await clangdContext.activate(context.globalStorageUri.path, outputChannel);

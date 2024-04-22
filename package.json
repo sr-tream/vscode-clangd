@@ -179,6 +179,17 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Enable code completion provided by the language server"
+                },
+                "clangd.documentation": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "default": {
+                        "^std::.*": "https://duckduckgo.com/?q=!ducky+site:cppreference.com+{{symbol}}",
+                        "^boost::.*": "https://duckduckgo.com/?q=!ducky+site:www.boost.org+{{symbol}}"
+                    },
+                    "markdownDescription": "Regex matches for symbol names, to open documentation in the web browser.\n\nFormat: `regex: url`\n\nVariables supported by URL:\n - `{{symbol}}` - full symbol name with namespace\n - `{{match:N}}` - regex match, where N is match id. `{{match:0}}` equals to `{{symbol}}`"
                 }
             }
         },
@@ -292,7 +303,7 @@
             {
                 "command": "clangd.openDocumentation",
                 "category": "clangd",
-                "title": "Open CppReference documentation for symbol under cursor"
+                "title": "Open documentation for symbol under cursor"
             }
         ],
         "keybindings": [

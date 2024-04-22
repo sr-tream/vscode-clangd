@@ -5,13 +5,13 @@ import * as ast from './ast';
 import * as cmakeTools from './cmake-tools';
 import * as config from './config';
 import * as configFileWatcher from './config-file-watcher';
-import * as docCppref from './doc-cppref';
 import * as fileStatus from './file-status';
 import * as inactiveRegions from './inactive-regions';
 import * as inlayHints from './inlay-hints';
 import * as install from './install';
 import * as memoryUsage from './memory-usage';
 import * as openConfig from './open-config';
+import * as docCppref from './open-documentation';
 import * as switchSourceHeader from './switch-source-header';
 import * as typeHierarchy from './type-hierarchy';
 
