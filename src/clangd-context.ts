@@ -15,6 +15,8 @@ import * as docCppref from './open-documentation';
 import * as switchSourceHeader from './switch-source-header';
 import * as typeHierarchy from './type-hierarchy';
 
+export let context_ready: boolean = false;
+
 export const clangdDocumentSelector = [
   {scheme: 'file', language: 'c'},
   {scheme: 'file', language: 'cpp'},
@@ -193,6 +195,8 @@ export class ClangdContext implements vscode.Disposable {
     configFileWatcher.activate(this);
     docCppref.activate(this);
     cmakeTools.activate(this);
+
+    context_ready = true;
   }
 
   get visibleClangdEditors(): vscode.TextEditor[] {

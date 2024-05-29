@@ -1,10 +1,10 @@
-import {exec} from 'child_process';
+import { exec } from 'child_process';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as api from 'vscode-cmake-tools';
 import * as vscodelc from 'vscode-languageclient/node';
 
-import {ClangdContext} from './clangd-context';
+import { ClangdContext, context_ready } from './clangd-context';
 import * as thisExtension from './extension';
 
 export function activate(context: ClangdContext) {
@@ -12,43 +12,44 @@ export function activate(context: ClangdContext) {
   context.client.registerFeature(feature);
 }
 
-export let clang_resource_dir: string|undefined;
+export let clang_resource_dir: string | undefined;
 
 namespace protocol {
 
-export interface DidChangeConfigurationClientCapabilities {
-  dynamicRegistration?: boolean;
-}
+  export interface DidChangeConfigurationClientCapabilities {
+    dynamicRegistration?: boolean;
+  }
 
-export interface ClangdCompileCommand {
-  // Directory
-  workingDirectory: string;
-  // Command line
-  compilationCommand: string[];
-}
+  export interface ClangdCompileCommand {
+    // Directory
+    workingDirectory: string;
+    // Command line
+    compilationCommand: string[];
+  }
 
-export interface ConfigurationSettings {
-  // File -> ClangdCompileCommand
-  compilationDatabaseChanges: Object;
-}
+  export interface ConfigurationSettings {
+    // File -> ClangdCompileCommand
+    compilationDatabaseChanges: Object;
+  }
 
-export interface DidChangeConfigurationParams {
-  settings: ConfigurationSettings;
-}
+  export interface DidChangeConfigurationParams {
+    settings: ConfigurationSettings;
+  }
 
-export namespace DidChangeConfigurationRequest {
-export const type = new vscodelc.NotificationType<DidChangeConfigurationParams>(
-    'workspace/didChangeConfiguration');
-}
+  export namespace DidChangeConfigurationRequest {
+    export const type = new vscodelc.NotificationType<DidChangeConfigurationParams>(
+      'workspace/didChangeConfiguration');
+  }
 
 } // namespace protocol
 
 class CMakeToolsFeature implements vscodelc.StaticFeature {
-  private projectChange: vscode.Disposable = {dispose() {}};
-  private codeModelChange: vscode.Disposable|undefined;
-  private cmakeTools: api.CMakeToolsApi|undefined;
-  private project: api.Project|undefined;
-  private codeModel: Map<string, protocol.ClangdCompileCommand>|undefined;
+  private projectChange: vscode.Disposable = { dispose() { } };
+  private codeModelChange: vscode.Disposable | undefined;
+  private cmakeTools: api.CMakeToolsApi | undefined;
+  private project: api.Project | undefined;
+  private codeModel: Map<string, protocol.ClangdCompileCommand> | undefined;
+  private toolchains: Map<string, api.CodeModel.Toolchain> | undefined;
   private restarting = false;
 
   constructor(private readonly context: ClangdContext) {
@@ -62,7 +63,7 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
         return;
 
       this.projectChange = this.cmakeTools.onActiveProjectChanged(
-          this.onActiveProjectChanged, this);
+        this.onActiveProjectChanged, this);
       if (vscode.workspace.workspaceFolders !== undefined) {
         // FIXME: clangd not supported multi-workspace projects
         const projectUri = vscode.workspace.workspaceFolders[0].uri;
@@ -71,19 +72,19 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
     });
   }
 
-  fillClientCapabilities(_capabilities: vscodelc.ClientCapabilities) {}
-  fillInitializeParams(_params: vscodelc.InitializeParams) {}
+  fillClientCapabilities(_capabilities: vscodelc.ClientCapabilities) { }
+  fillInitializeParams(_params: vscodelc.InitializeParams) { }
 
   initialize(capabilities: vscodelc.ServerCapabilities,
-             _documentSelector: vscodelc.DocumentSelector|undefined) {}
-  getState(): vscodelc.FeatureState { return {kind: 'static'}; }
+    _documentSelector: vscodelc.DocumentSelector | undefined) { }
+  getState(): vscodelc.FeatureState { return { kind: 'static' }; }
   dispose() {
     if (this.codeModelChange !== undefined)
       this.codeModelChange.dispose();
     this.projectChange.dispose();
   }
 
-  async onActiveProjectChanged(path: vscode.Uri|undefined) {
+  async onActiveProjectChanged(path: vscode.Uri | undefined) {
     if (this.codeModelChange !== undefined) {
       this.codeModelChange.dispose();
       this.codeModelChange = undefined;
@@ -95,7 +96,7 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
     this.cmakeTools?.getProject(path).then(project => {
       this.project = project;
       this.codeModelChange =
-          this.project?.onCodeModelChanged(this.onCodeModelChanged, this);
+        this.project?.onCodeModelChanged(this.onCodeModelChanged, this);
       this.onCodeModelChanged();
     });
   }
@@ -109,12 +110,12 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
     if (this.restarting)
       return;
     this.restarting = true;
-    const interval = setInterval(function(This: CMakeToolsFeature) {
-      if (!thisExtension.extension_ready)
+    const interval = setInterval(function (This: CMakeToolsFeature) {
+      if (!thisExtension.extension_ready || !context_ready)
         return;
       This.do_restart_clangd();
       clearInterval(interval);
-    }, 5000, this);
+    }, 1000, this);
   }
 
   async onCodeModelChanged() {
@@ -125,38 +126,48 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
     if (content.toolchains === undefined)
       return;
 
+    if (this.toolchains !== undefined && this.toolchains === content.toolchains) {
+      this.toolchains = content.toolchains;
+      this.restart_clangd();
+      return;
+    } else
+      this.toolchains = content.toolchains;
+
     const firstCompiler =
-        content.toolchains.values().next().value as api.CodeModel.Toolchain ||
-        undefined;
+      content.toolchains.values().next().value as api.CodeModel.Toolchain ||
+      undefined;
     if (firstCompiler !== undefined) {
       let compilerName =
-          firstCompiler.path
-              .substring(firstCompiler.path.lastIndexOf(path.sep) + 1)
-              .toLowerCase();
+        firstCompiler.path
+          .substring(firstCompiler.path.lastIndexOf(path.sep) + 1)
+          .toLowerCase();
       if (compilerName.endsWith('.exe'))
         compilerName = compilerName.substring(0, compilerName.length - 4);
       if (compilerName.indexOf('clang') !== -1) {
         exec(`${firstCompiler.path} -print-file-name=`,
-             (error, stdout, stderr) => {
-               if (error) {
-                 return;
-               }
-               while (stdout.endsWith('\n') || stdout.endsWith('\r'))
-                 stdout = stdout.slice(0, -1);
-               if (stdout !== clang_resource_dir) {
-                 clang_resource_dir = stdout;
-                 this.restart_clangd();
-               }
-             });
+          (error, stdout, stderr) => {
+            if (error) {
+              clang_resource_dir = undefined;
+              this.restart_clangd();
+              return;
+            }
+            while (stdout.endsWith('\n') || stdout.endsWith('\r'))
+              stdout = stdout.slice(0, -1);
+            if (stdout !== clang_resource_dir) {
+              clang_resource_dir = stdout;
+              this.restart_clangd();
+            }
+          });
+        return;
       }
     }
 
     const request: protocol.DidChangeConfigurationParams = {
-      settings: {compilationDatabaseChanges: {}}
+      settings: { compilationDatabaseChanges: {} }
     };
 
     let codeModelChanges: Map<string, protocol.ClangdCompileCommand> =
-        new Map();
+      new Map();
     content.configurations.forEach(configuration => {
       configuration.projects.forEach(project => {
         let sourceDirectory = project.sourceDirectory;
@@ -179,28 +190,28 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
               commandLine.push(`--target=${compiler.target}`);
 
             let compilerName =
-                compiler.path.substring(compiler.path.lastIndexOf(path.sep) + 1)
-                    .toLowerCase();
+              compiler.path.substring(compiler.path.lastIndexOf(path.sep) + 1)
+                .toLowerCase();
             if (compilerName.endsWith('.exe'))
               compilerName = compilerName.substring(0, compilerName.length - 4);
 
             const ClangCLMode =
-                compilerName === 'cl' || compilerName === 'clang-cl';
+              compilerName === 'cl' || compilerName === 'clang-cl';
             const incFlag = ClangCLMode ? '/I' : '-I';
             const defFlag = ClangCLMode ? '/D' : '-D';
 
             fileGroup.compileCommandFragments?.forEach(commands => {
               commands.split(/\s/g).forEach(
-                  command => { commandLine.push(command); });
+                command => { commandLine.push(command); });
             });
             fileGroup.includePath?.forEach(
-                include => { commandLine.push(`${incFlag}${include.path}`); });
+              include => { commandLine.push(`${incFlag}${include.path}`); });
             fileGroup.defines?.forEach(
-                define => { commandLine.push(`${defFlag}${define}`); });
+              define => { commandLine.push(`${defFlag}${define}`); });
             fileGroup.sources.forEach(source => {
               const file = sourceDirectory.length != 0
-                               ? sourceDirectory + path.sep + source
-                               : source;
+                ? sourceDirectory + path.sep + source
+                : source;
               const command: protocol.ClangdCompileCommand = {
                 workingDirectory: sourceDirectory,
                 compilationCommand: commandLine
@@ -224,9 +235,9 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
       }
       const command = codeModelChanges.get(file);
       if (command?.workingDirectory === cc.workingDirectory &&
-          command?.compilationCommand.length === cc.compilationCommand.length &&
-          command?.compilationCommand.every(
-              (val, index) => val === cc.compilationCommand[index])) {
+        command?.compilationCommand.length === cc.compilationCommand.length &&
+        command?.compilationCommand.every(
+          (val, index) => val === cc.compilationCommand[index])) {
         codeModelChanges.delete(file);
       }
     });
@@ -236,10 +247,12 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
       return;
 
     codeModelChanges.forEach(
-        (cc, file) => {Object.assign(
-            request.settings.compilationDatabaseChanges, {[file]: cc})});
+      (cc, file) => {
+        Object.assign(
+          request.settings.compilationDatabaseChanges, { [file]: cc })
+      });
 
     this.context.client.sendNotification(
-        protocol.DidChangeConfigurationRequest.type, request);
+      protocol.DidChangeConfigurationRequest.type, request);
   }
 }
