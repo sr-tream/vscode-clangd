@@ -49,7 +49,7 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
   private cmakeTools: api.CMakeToolsApi | undefined;
   private project: api.Project | undefined;
   private codeModel: Map<string, protocol.ClangdCompileCommand> | undefined;
-  private toolchains: Map<string, api.CodeModel.Toolchain> | undefined;
+  private static toolchains: Map<string, api.CodeModel.Toolchain> | undefined;
   private restarting = false;
 
   constructor(private readonly context: ClangdContext) {
@@ -126,12 +126,13 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
     if (content.toolchains === undefined)
       return;
 
-    if (this.toolchains !== undefined && this.toolchains === content.toolchains) {
-      this.toolchains = content.toolchains;
+    if (CMakeToolsFeature.toolchains !== undefined &&
+      CMakeToolsFeature.toolchains !== content.toolchains) {
+      CMakeToolsFeature.toolchains = content.toolchains;
       this.restart_clangd();
       return;
     } else
-      this.toolchains = content.toolchains;
+      CMakeToolsFeature.toolchains = content.toolchains;
 
     const firstCompiler =
       content.toolchains.values().next().value as api.CodeModel.Toolchain ||
@@ -158,7 +159,6 @@ class CMakeToolsFeature implements vscodelc.StaticFeature {
               this.restart_clangd();
             }
           });
-        return;
       }
     }
 
